@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HAT-III Practice</title>
+<style>
+:root{--bg:#f6f4ee;--card:#fffdf8;--ink:#20262b;--muted:#626b72;--line:#dcd8cc;--brand:#17594f;--brand-ink:#fff;--soft:#e4efeb;--good:#176b45;--good-bg:#dff3e7;--bad:#a4302a;--bad-bg:#fae5e2;--flag:#8a5a00;--flag-bg:#fbefcf}
+@media (prefers-color-scheme:dark){:root{--bg:#14191b;--card:#1d2427;--ink:#ecefed;--muted:#a2acab;--line:#354044;--brand:#5fc3ae;--brand-ink:#08201b;--soft:#21352f;--good:#73d6a2;--good-bg:#173427;--bad:#f09b92;--bad-bg:#3d201d;--flag:#ecc36a;--flag-bg:#3a2f13}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.55 "Segoe UI",system-ui,sans-serif}
+main{max-width:780px;margin:auto;padding:20px 16px 60px}
+h1{font-size:28px;margin:8px 0 2px}h2{font-size:20px;margin:26px 0 10px}h3{margin:20px 0 6px;font-size:17px;color:var(--brand)}
+.muted{color:var(--muted);font-size:15px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin:10px 0}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:9px 15px}
+button:hover{border-color:var(--brand)}
+button.main{background:var(--brand);border-color:var(--brand);color:var(--brand-ink);font-weight:600}
+button:disabled{opacity:.4;cursor:default}.opt:disabled{opacity:1;color:var(--ink)}
+button:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.grow{flex:1}
+.paper{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.paper b{display:block}
+.top{position:sticky;top:0;background:var(--bg);padding:8px 0;border-bottom:1px solid var(--line);z-index:2}
+.timer{font-variant-numeric:tabular-nums;font-weight:700}
+.passage{background:var(--soft);border-radius:8px;padding:12px;margin-bottom:12px;font-size:16px}
+.opt{display:block;width:100%;text-align:left;margin:8px 0;padding:12px 14px}
+.opt.sel{border:2px solid var(--brand);background:var(--soft);font-weight:600}
+.opt.right{border:2px solid var(--good);background:var(--good-bg)}
+.opt.wrong{border:2px solid var(--bad);background:var(--bad-bg)}
+.expl{border-left:4px solid var(--brand);padding:8px 12px;margin-top:10px;background:var(--soft);border-radius:0 8px 8px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(42px,1fr));gap:5px;margin-top:10px}
+.grid button{padding:6px 0;font-size:14px}
+.grid .done{background:var(--soft);border-color:var(--brand)}.grid .now{outline:2px solid var(--brand)}
+.grid .flagged{background:var(--flag-bg);border-color:var(--flag)}.grid .right{background:var(--good-bg);border-color:var(--good)}.grid .wrong{background:var(--bad-bg);border-color:var(--bad)}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);font-size:15px}td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.score{font-size:38px;font-weight:700;color:var(--brand)}
+pre{background:var(--soft);border-radius:8px;padding:12px;overflow-x:auto;font:15px/1.5 Consolas,monospace}
+.tag{font-size:13px;color:var(--muted)}
+.warn{color:var(--bad);font-weight:600}
+[dir=rtl]{font-family:"Noto Nastaliq Urdu","Segoe UI",serif}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script src="papers/list.js"></script>
+<script>
+var SEC={V:"Verbal",A:"Analytical",Q:"Quantitative"},app=document.getElementById("app"),S=null,tick=null;
+function load(k,d){try{var v=localStorage.getItem("hat:"+k);return v?JSON.parse(v):d}catch(e){return d}}
+function save(k,v){try{localStorage.setItem("hat:"+k,JSON.stringify(v))}catch(e){}}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function paper(id){return HAT_PAPERS.filter(function(p){return p.id===id})[0]}
+function fmt(s){s=Math.max(0,s);var m=Math.floor(s/60),x=s%60;return m+":"+(x<10?"0":"")+x}
+function stop(){if(tick){clearInterval(tick);tick=null}}
+
+function home(){stop();S=null;
+ var hist=load("history",[]),html='<h1>HAT-III Practice</h1><p class="muted">Original practice questions in the HAT-III pattern. These are not real HEC papers, and their difficulty is an estimate.</p>';
+ ["daily","mock"].forEach(function(kind){
+  html+='<h2>'+(kind==="daily"?"Daily papers":"Full papers: 100 questions, 120 minutes")+'</h2>';
+  HAT_PAPERS.filter(function(p){return p.kind===kind}).forEach(function(p){
+   var runs=hist.filter(function(h){return h.id===p.id}),last=runs[runs.length-1],saved=load("run:"+p.id,null);
+   html+='<div class="card paper"><div class="grow"><b>'+esc(p.title)+'</b><span class="muted">'+esc(p.date)+' · '+p.questions.length+' questions · '+p.minutes+' min'+(last?' · Last score: '+last.score+'/'+last.total:'')+'</span></div>'+
+   '<button class="main" data-open="'+p.id+'">'+(saved?"Continue":last?"Try again":"Start")+'</button>'+(last?'<button data-last="'+p.id+'">Review</button>':'')+'</div>'});
+ });
+ var weak=weakTopics(hist);
+ if(weak.length){html+='<h2>Weakest topics</h2><div class="card"><table><tr><th>Topic</th><th class="n">Correct</th></tr>';
+  weak.slice(0,6).forEach(function(w){html+='<tr><td>'+esc(w.t)+'</td><td class="n">'+w.r+'/'+w.n+'</td></tr>'});html+='</table></div>'}
+ app.innerHTML=html;
+ app.querySelectorAll("[data-open]").forEach(function(b){b.onclick=function(){open(b.dataset.open)}});
+ app.querySelectorAll("[data-last]").forEach(function(b){b.onclick=function(){var r=hist.filter(function(h){return h.id===b.dataset.last}).pop();S={p:paper(r.id),ans:r.ans,flags:{},i:0,done:true};results(r)}});
+ window.scrollTo(0,0)}
+
+function weakTopics(hist){var m={},seen={};hist.slice().reverse().forEach(function(h){if(seen[h.id])return;seen[h.id]=1;Object.keys(h.topics).forEach(function(t){m[t]=m[t]||{t:t,r:0,n:0};m[t].r+=h.topics[t][0];m[t].n+=h.topics[t][1]})});
+ return Object.keys(m).map(function(k){return m[k]}).filter(function(x){return x.r<x.n}).sort(function(a,b){return a.r/a.n-b.r/b.n})}
+
+function open(id){var p=paper(id),s=load("run:"+id,null);
+ if(s){S={p:p,ans:s.ans,flags:s.flags,i:s.i,left:s.left,done:false};question();startClock();return}
+ var html='<button id="back">← All papers</button><h1>'+esc(p.title)+'</h1>';
+ html+=p.kind==="daily"?'<p class="muted">Read the lesson. Your answer is marked immediately, with an explanation.</p>':'<p class="muted">Exam conditions: no marking until you submit. Answer every question. A prep site reports no negative marking, so check the official notice before the real test.</p>';
+ if(p.lesson)html+='<div class="card">'+p.lesson+'</div>';
+ html+='<p><button class="main" id="go">Start: '+p.minutes+' minute timer</button></p>';
+ app.innerHTML=html;document.getElementById("back").onclick=home;
+ document.getElementById("go").onclick=function(){S={p:p,ans:{},flags:{},i:0,left:p.minutes*60,done:false};persist();question();startClock()};window.scrollTo(0,0)}
+
+function persist(){save("run:"+S.p.id,{ans:S.ans,flags:S.flags,i:S.i,left:S.left})}
+function startClock(){stop();tick=setInterval(function(){S.left--;var t=document.getElementById("t");if(t)t.textContent=fmt(S.left);if(S.left%10===0)persist();if(S.left<=0)finish()},1000)}
+
+function question(){var p=S.p,q=p.questions[S.i],a=S.ans[S.i],instant=p.kind==="daily",locked=instant&&a!==undefined,count=Object.keys(S.ans).length;
+ var html='<div class="top row"><b class="grow">'+(S.i+1)+' / '+p.questions.length+' <span class="tag">'+SEC[q.s]+' · '+esc(q.t)+'</span></b><span class="timer" id="t">'+fmt(S.left)+'</span><button id="sub">Submit</button></div><div class="card">';
+ if(q.p)html+='<div class="passage">'+esc(q.p)+'</div>';
+ html+='<p><b>'+esc(q.q)+'</b></p>';
+ q.o.forEach(function(o,i){var c="opt";if(locked){if(i===q.a)c+=" right";else if(i===a)c+=" wrong"}else if(a===i)c+=" sel";
+  html+='<button class="'+c+'" data-o="'+i+'" dir="auto"'+(locked?" disabled":"")+'>'+esc(o)+'</button>'});
+ if(locked)html+='<div class="expl">'+(a===q.a?"<b>Correct.</b> ":"<b>Not correct.</b> ")+esc(q.e)+'</div>';
+ html+='<div class="row" style="margin-top:12px"><button id="prev"'+(S.i?"":" disabled")+'>← Back</button><button id="flag">'+(S.flags[S.i]?"★ Marked":"☆ Mark as unsure")+'</button><span class="grow"></span><button class="main" id="next"'+(S.i<p.questions.length-1?"":" disabled")+'>Next →</button></div></div>';
+ html+='<div class="card"><span class="muted">Answered: '+count+' / '+p.questions.length+'</span><div class="grid">';
+ p.questions.forEach(function(_,i){var c=(i===S.i?"now ":"")+(S.flags[i]?"flagged":S.ans[i]!==undefined?"done":"");html+='<button class="'+c+'" data-g="'+i+'">'+(i+1)+'</button>'});
+ html+='</div></div>';app.innerHTML=html;
+ app.querySelectorAll("[data-o]").forEach(function(b){b.onclick=function(){S.ans[S.i]=+b.dataset.o;persist();question()}});
+ app.querySelectorAll("[data-g]").forEach(function(b){b.onclick=function(){S.i=+b.dataset.g;persist();question();window.scrollTo(0,0)}});
+ document.getElementById("prev").onclick=function(){S.i--;persist();question();window.scrollTo(0,0)};
+ document.getElementById("next").onclick=function(){S.i++;persist();question();window.scrollTo(0,0)};
+ document.getElementById("flag").onclick=function(){if(S.flags[S.i])delete S.flags[S.i];else S.flags[S.i]=1;persist();question()};
+ document.getElementById("sub").onclick=confirmSubmit}
+
+function confirmSubmit(){var left=S.p.questions.length-Object.keys(S.ans).length,b=document.getElementById("sub"),w=document.createElement("div");
+ w.className="card row";w.innerHTML='<span class="grow">'+(left?'<span class="warn">'+left+' unanswered.</span> ':'')+'Submit this paper?</span><button class="main" id="yes">Yes, submit</button><button id="no">Keep working</button>';
+ var top=app.querySelector(".top");top.parentNode.insertBefore(w,top.nextSibling);b.disabled=true;window.scrollTo(0,0);
+ document.getElementById("yes").onclick=finish;document.getElementById("no").onclick=question}
+
+function finish(){stop();var p=S.p,r={id:p.id,title:p.title,date:new Date().toISOString().slice(0,10),ans:S.ans,score:0,total:p.questions.length,sec:{},topics:{},used:p.minutes*60-S.left};
+ p.questions.forEach(function(q,i){var ok=S.ans[i]===q.a?1:0;r.score+=ok;r.sec[q.s]=r.sec[q.s]||[0,0];r.sec[q.s][0]+=ok;r.sec[q.s][1]++;r.topics[q.t]=r.topics[q.t]||[0,0];r.topics[q.t][0]+=ok;r.topics[q.t][1]++});
+ var h=load("history",[]);h.push(r);save("history",h);try{localStorage.removeItem("hat:run:"+p.id)}catch(e){}S.done=true;results(r)}
+
+function resultsText(r){var t="HAT result: "+r.title+" | "+r.date+" | Score "+r.score+"/"+r.total+" | Time "+fmt(r.used)+"\n";
+ Object.keys(r.sec).forEach(function(s){t+=SEC[s]+": "+r.sec[s][0]+"/"+r.sec[s][1]+"\n"});t+="By topic:\n";
+ Object.keys(r.topics).forEach(function(k){t+=k+": "+r.topics[k][0]+"/"+r.topics[k][1]+"\n"});
+ var m=[];S.p.questions.forEach(function(q,i){if(r.ans[i]!==q.a)m.push(i+1)});t+="Wrong or blank questions: "+(m.join(", ")||"none")+"\n";return t}
+
+function results(r,mode){var p=S.p,html='<button id="back">← All papers</button><h1>'+esc(p.title)+'</h1><div class="score">'+r.score+' / '+r.total+'</div>';
+ html+='<div class="card"><table><tr><th>Section</th><th class="n">Correct</th></tr>';Object.keys(r.sec).forEach(function(s){html+='<tr><td>'+SEC[s]+'</td><td class="n">'+r.sec[s][0]+'/'+r.sec[s][1]+'</td></tr>'});html+='</table></div>';
+ html+='<div class="row"><button class="main" id="copy">Copy result for Claude</button><span class="muted" id="copied"></span></div><h2>Topics</h2><div class="card"><table><tr><th>Topic</th><th class="n">Correct</th></tr>';
+ Object.keys(r.topics).sort(function(a,b){return r.topics[a][0]/r.topics[a][1]-r.topics[b][0]/r.topics[b][1]}).forEach(function(t){html+='<tr><td>'+esc(t)+'</td><td class="n">'+r.topics[t][0]+'/'+r.topics[t][1]+'</td></tr>'});html+='</table></div>';
+ mode=mode||"wrong";html+='<h2>Review</h2><div class="row"><button id="mw"'+(mode==="wrong"?" disabled":"")+'>Mistakes only</button><button id="ma"'+(mode==="all"?" disabled":"")+'>All questions</button></div>';
+ var shown=0;p.questions.forEach(function(q,i){var a=r.ans[i],ok=a===q.a;if(mode==="wrong"&&ok)return;shown++;
+  html+='<div class="card"><span class="tag">Question '+(i+1)+' · '+esc(q.t)+'</span>'+(q.p?'<div class="passage">'+esc(q.p)+'</div>':'')+'<p><b>'+esc(q.q)+'</b></p>';
+  q.o.forEach(function(o,j){var c="opt";if(j===q.a)c+=" right";else if(j===a)c+=" wrong";html+='<button class="'+c+'" disabled dir="auto">'+esc(o)+'</button>'});
+  if(a===undefined)html+='<p class="warn">Not answered</p>';html+='<div class="expl">'+esc(q.e)+'</div></div>'});
+ if(!shown)html+='<p class="card">No mistakes in this paper.</p>';
+ app.innerHTML=html;document.getElementById("back").onclick=home;
+ document.getElementById("mw").onclick=function(){results(r,"wrong")};document.getElementById("ma").onclick=function(){results(r,"all")};
+ document.getElementById("copy").onclick=function(){var t=resultsText(r),m=document.getElementById("copied");
+  function ok(){m.textContent="Copied. Paste it into your Claude chat."}
+  function fb(){var x=document.createElement("textarea");x.value=t;document.body.appendChild(x);x.select();try{document.execCommand("copy");ok()}catch(e){m.textContent="Could not copy."}x.remove()}
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(ok,fb);else fb()};
+ window.scrollTo(0,0)}
+
+var pending=HAT_LIST.length;
+HAT_LIST.forEach(function(id){var s=document.createElement("script");s.src="papers/"+id+".js";s.onload=s.onerror=function(){if(--pending===0)home()};document.body.appendChild(s)});
+</script>
+</body>
+</html>
