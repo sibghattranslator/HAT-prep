@@ -107,14 +107,15 @@ function confirmSubmit(){var left=S.p.questions.length-Object.keys(S.ans).length
  var top=app.querySelector(".top");top.parentNode.insertBefore(w,top.nextSibling);b.disabled=true;window.scrollTo(0,0);
  document.getElementById("yes").onclick=finish;document.getElementById("no").onclick=question}
 
-function finish(){stop();var p=S.p,r={id:p.id,title:p.title,date:new Date().toISOString().slice(0,10),ans:S.ans,score:0,total:p.questions.length,sec:{},topics:{},used:p.minutes*60-S.left};
+function finish(){stop();var p=S.p,r={id:p.id,title:p.title,date:new Date().toISOString().slice(0,10),ans:S.ans,flags:S.flags,score:0,total:p.questions.length,sec:{},topics:{},used:p.minutes*60-S.left};
  p.questions.forEach(function(q,i){var ok=S.ans[i]===q.a?1:0;r.score+=ok;r.sec[q.s]=r.sec[q.s]||[0,0];r.sec[q.s][0]+=ok;r.sec[q.s][1]++;r.topics[q.t]=r.topics[q.t]||[0,0];r.topics[q.t][0]+=ok;r.topics[q.t][1]++});
  var h=load("history",[]);h.push(r);save("history",h);try{localStorage.removeItem("hat:run:"+p.id)}catch(e){}S.done=true;results(r)}
 
 function resultsText(r){var t="HAT result: "+r.title+" | "+r.date+" | Score "+r.score+"/"+r.total+" | Time "+fmt(r.used)+"\n";
  Object.keys(r.sec).forEach(function(s){t+=SEC[s]+": "+r.sec[s][0]+"/"+r.sec[s][1]+"\n"});t+="By topic:\n";
  Object.keys(r.topics).forEach(function(k){t+=k+": "+r.topics[k][0]+"/"+r.topics[k][1]+"\n"});
- var m=[];S.p.questions.forEach(function(q,i){if(r.ans[i]!==q.a)m.push(i+1)});t+="Wrong or blank questions: "+(m.join(", ")||"none")+"\n";return t}
+ var m=[];S.p.questions.forEach(function(q,i){if(r.ans[i]!==q.a)m.push("Q"+(i+1)+": chose "+(r.ans[i]===undefined?"blank":q.o[r.ans[i]])+" | correct "+q.o[q.a])});t+="Wrong or blank:\n"+(m.join("\n")||"none")+"\n";
+ var f=Object.keys(r.flags||{}).map(function(i){return +i+1}).sort(function(a,b){return a-b});t+="Marked unsure: "+(f.join(", ")||"none")+"\n";return t}
 
 function results(r,mode){var p=S.p,html='<button id="back">← All papers</button><h1>'+esc(p.title)+'</h1><div class="score">'+r.score+' / '+r.total+'</div>';
  html+='<div class="card"><table><tr><th>Section</th><th class="n">Correct</th></tr>';Object.keys(r.sec).forEach(function(s){html+='<tr><td>'+SEC[s]+'</td><td class="n">'+r.sec[s][0]+'/'+r.sec[s][1]+'</td></tr>'});html+='</table></div>';
