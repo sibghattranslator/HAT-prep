@@ -136,7 +136,7 @@ function results(r,mode){var p=S.p,html='<button id="back">← All papers</butto
  window.scrollTo(0,0)}
 
 var pending=HAT_LIST.length;
-HAT_LIST.forEach(function(id){var s=document.createElement("script");s.src="papers/"+id+".js";s.onload=s.onerror=function(){if(--pending===0)home()};document.body.appendChild(s)});
+HAT_LIST.forEach(function(id){var s=document.createElement("script");s.async=false;s.src="papers/"+id+".js";s.onload=s.onerror=function(){if(--pending===0)home()};document.body.appendChild(s)});
 </script>
 </body>
 </html>
